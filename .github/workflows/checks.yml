@@ -1,0 +1,22 @@
+name: Application and database checks
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - name: Install disposable database test tools
+        run: sudo apt-get update && sudo apt-get install -y postgresql-16
+      - run: npm run db:test
+        env:
+          PG_BIN: /usr/lib/postgresql/16/bin
+      - run: npm run netlify:build
+      - run: npm audit --omit=dev --audit-level=high

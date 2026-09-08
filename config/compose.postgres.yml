@@ -1,0 +1,20 @@
+name: gocoach-database
+services:
+  postgres:
+    image: ${GOCOACH_POSTGRES_IMAGE:-postgres:15-alpine}
+    environment:
+      POSTGRES_DB: gocoach
+      POSTGRES_USER: gocoach_owner
+      POSTGRES_PASSWORD: ${GOCOACH_POSTGRES_PASSWORD:?Set GOCOACH_POSTGRES_PASSWORD before starting the local database}
+    ports:
+      - "127.0.0.1:${GOCOACH_POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+volumes:
+  postgres_data:

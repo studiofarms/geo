@@ -1,0 +1,18 @@
+{
+  "name": "gocoach",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "dev": "node --watch ../scripts/server.mjs",
+    "build": "node ../scripts/build.mjs",
+    "start": "node ../scripts/server.mjs --production",
+    "test": "node --test ../tests/*.test.mjs",
+    "inquiries": "node ../scripts/inquiries.mjs",
+    "create-coach": "node ../scripts/create-account.mjs",
+    "db:migrate": "node ../scripts/database.mjs",
+    "db:sql": "node ../scripts/database.mjs --print",
+    "db:test": "node ../scripts/test-database.mjs"
+  }
+}

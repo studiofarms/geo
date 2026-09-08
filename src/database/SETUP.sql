@@ -1,0 +1,282 @@
+-- GOCOACH: NETLIFY DEPLOYMENT AND POSTGRESQL SETUP
+-- This is a deployment guide written in SQL comments; executing it does nothing.
+-- Database DDL is in netlify/database/migrations/001_*.sql through 012_*.sql.
+-- The application uses PostgreSQL on Netlify. The separate, offline JSON demo
+-- remains available locally when no database environment variables are configured.
+--
+-- DEPLOY FROM THE PRIVATE GITHUB REPOSITORY
+-- 1. The repository owner must grant the associate GitHub access to
+--    tanthonybosci/gocoach. Clone using a GitHub-authenticated account:
+--      gh repo clone tanthonybosci/gocoach
+--      cd gocoach
+--      npm ci
+--    Requires Node.js 22+ and npm. No database password belongs in this repository.
+-- 2. Generate an initial coach password hash (password input is hidden):
+--      npm run --silent bootstrap:hash
+--    Keep the chosen password in your password manager; copy the printed hash.
+--    Generate the server encryption key separately:
+--      node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
+--    Store this key securely. Losing it makes saved Calendly credentials unreadable.
+-- 3. In Netlify, add a project by importing the private GitHub repository.
+--    Authorize the Netlify GitHub app for this repository. Deploy branch: main.
+--    Use the repository root (no base or package directory). netlify.toml supplies:
+--      Build command: npm run build
+--      Publish directory: dist
+--      Functions directory: src/netlify/functions
+--      Node version: 22
+-- 4. Before using the site, add these server environment variables with Functions
+--    scope in the production context; config/netlify.env.example is a reference:
+--      GOCOACH_DEMO=false
+--      GOCOACH_BOOTSTRAP_EMAIL=<initial coach email>
+--      GOCOACH_BOOTSTRAP_NAME=<coach name>
+--      GOCOACH_BOOTSTRAP_PASSWORD_HASH=<hash from step 2>
+--      GOCOACH_SECRET_KEY=<64 hex characters from step 2>
+--    The UI can deploy before these are set, but account/data endpoints fail closed
+--    until the initial account is configured. Redeploy after changing variables.
+--    These are server values, never browser variables, VITE_* values, or source code.
+-- 5. Deploy. The installed @netlify/database SDK and SQL migration directory tell
+--    Netlify to provision PostgreSQL and apply the migrations before publishing.
+--    Check Data & Storage > Database and the deploy migration logs. There is no
+--    need to create Neon/Supabase separately or paste a DATABASE_URL into the UI.
+--    Official setup: https://docs.netlify.com/build/data-and-storage/netlify-database/getting-started/
+--    If account provisioning needs attention, resolve the Netlify dashboard error;
+--    account billing/quotas remain controlled by Netlify. No cloud DB was provisioned
+--    by the local build/test commands used to prepare this repository.
+-- 6. Open /api/health: expect status=ok, mode=production, storage=postgres.
+--    Sign in at /portal.html with the coach email and the original password.
+--    First use creates the account once. No demo accounts are created in this mode.
+--    After successful sign-in, remove the three GOCOACH_BOOTSTRAP_* variables and
+--    redeploy. Existing accounts persist; bootstrap values do not reset passwords.
+-- 7. Configure Calendly from Settings in the coach workspace, as described below.
+--    Create a buyer and cohort, invite a participant, then verify role-specific
+--    visibility, a private file download, and a test booking on the deployed site.
+--
+-- CALENDLY: CONFIGURE IN THE FRONTEND
+-- Only an authenticated production coach can save credentials. Public demo access
+-- cannot connect a live provider. One Calendly coach account is supported per
+-- workspace. Use the coach's personal access token, not an OAuth client secret.
+-- In Calendly, create TWO distinct, active event types:
+--   - discovery: 30 minutes, with payment collection disabled ($0)
+--   - participant 1:1: an individual event, 15-180 minutes
+-- Link Google/Outlook and Zoom/Meet in Calendly and set the availability there.
+-- GoCoach's cohort availability polls remain in the app. Block cohort session times
+-- on the coach's connected calendar as well, to keep Calendly from offering them.
+--
+-- In GoCoach > Settings:
+--   1. Paste each event's https://calendly.com/<owner>/<event> link.
+--   2. Optionally paste a Calendly personal access token and Save & test connection.
+--      A token verifies account ownership, event types, and 30-minute discovery.
+--      Event links alone support embedding, without automatic GoCoach sync.
+--   3. Enable Use Calendly, save, then select Enable booking sync.
+--      Registration requires a deployed HTTPS site and supported Calendly plan.
+--      The app generates and stores the webhook signing key itself.
+--      Callback: https://<your-site>/api/webhooks/calendly
+--   4. Make a test discovery booking and confirm it appears in Client pipeline and
+--      Sessions. Test participant 1:1s from the signed-in participant workspace.
+--      Reschedule/cancel through Calendly links; those updates return via webhooks.
+--
+-- PAT scopes: users:read, event_types:read, scheduled_events:read, webhooks:write.
+-- webhooks:write includes webhooks:read, needed for registration recovery.
+-- https://developer.calendly.com/docs/authentication/scopes
+-- https://developer.calendly.com/api-docs/overview/webhooks/webhook-signatures
+--
+-- The token input is blank after saving. An existing token is retained when the
+-- input is left blank. Replacing it tests and encrypts the new token on the server.
+-- Encryption is AES-256-GCM with authenticated workspace context. Tokens and signing
+-- keys are stored only in integration_secrets; configuration and API DTOs omit them.
+-- GOCOACH_SECRET_KEY must remain stable across deploys. To rotate it, disconnect
+-- Calendly while the old key works, change the key, redeploy, and reconnect.
+-- Disconnect removes the registered webhook and stored credentials, preserving
+-- event links in disabled settings. If the provider token is already revoked,
+-- remove its webhook in Calendly and reconnect with a valid token before retrying.
+--
+-- Participant booking links carry an opaque, expiring cohort reference. Participants
+-- must book using their account email. Unmatched bookings are flagged for the coach
+-- in Settings; they are not attached to another participant's account. An ordinary
+-- Calendly booking made outside GoCoach does not prove cohort enrollment.
+-- Provider confirmation and signed webhooks are authoritative; iframe messages never
+-- create records. Duplicate and out-of-order events cannot duplicate or resurrect
+-- cancelled sessions. Valid reschedules preserve the existing participant/cohort.
+-- Existing historical Calendly bookings are not imported automatically.
+--
+-- ZOOM: TWO CODE-FREE SETUP PATHS
+-- Easiest for Calendly bookings: GoCoach Settings > Zoom > Open Zoom setup in
+-- Calendly. Authorize the Zoom account in Calendly and set Zoom as the location on
+-- each event type. Enable Calendly booking sync in GoCoach. Its signed booking event
+-- includes the Zoom join link; GoCoach does not create a second meeting.
+-- Official guide: https://calendly.com/help/calendly-zoom
+--
+-- For cohort sessions scheduled directly in GoCoach, use the second Zoom form:
+--   1. A Zoom account owner/admin creates a Server-to-Server OAuth app in the
+--      Zoom App Marketplace, completes its information, adds scopes, and activates it.
+--   2. Copy its Account ID, Client ID, and Client Secret into GoCoach Settings.
+--      Enter the Zoom host email and choose whether new meetings use a waiting room.
+--   3. Save & test Zoom verifies the host and securely saves the credentials.
+--      The same GOCOACH_SECRET_KEY protects Zoom and Calendly. No new environment
+--      variables, callback server, SDK keys, or code changes are needed for Zoom.
+--   4. Open a scheduled cohort session and choose Create Zoom meeting. Its protected
+--      join link appears in the session. The coach must be signed into the host's
+--      Zoom account when joining as host. Zoom host start tokens are never returned
+--      by GoCoach. Participants can join from 15 minutes before the session.
+--   5. After changing a session's time/title, choose Sync Zoom meeting. This updates
+--      the existing meeting. Remove Zoom meeting deletes it and clears the link.
+--      Cancelling a GoCoach session does not silently delete an external meeting:
+--      its details prompt the coach to remove the Zoom meeting as well.
+-- Direct setup guide: https://developers.zoom.us/docs/internal-apps/create/
+-- Required granular admin scopes:
+--   user:read:user:admin
+--   meeting:write:meeting:admin
+--   meeting:read:meeting:admin
+--   meeting:read:list_meetings:admin
+--   meeting:update:meeting:admin
+--   meeting:delete:meeting:admin
+-- https://developers.zoom.us/docs/integrations/oauth-scopes-granular/
+--
+-- This direct connection supports one Zoom host in the practice's account. It is an
+-- internal account integration, not a published multi-customer OAuth marketplace
+-- app. An account admin may have to grant permission to create the internal app.
+-- Client secrets are encrypted and never shown again. Access tokens are obtained
+-- automatically. Meetings use unique passcodes, disable joining before the host,
+-- and start with automatic recording off. The Zoom account's plan limits apply.
+-- Disconnecting removes credentials but preserves existing meetings and links.
+-- Reconnect to the same host to manage those meetings again. Remove outstanding
+-- GoCoach-created meetings before switching the connection to another host.
+--
+-- Interrupted creates are reconciled against a unique GoCoach reference in the
+-- meeting agenda. If the previous outcome cannot be established, the app refuses
+-- a second creation and asks the coach to review Zoom. This avoids duplicate rooms.
+-- The scheduled Zoom meeting list must include the prior attempt for automatic
+-- recovery. Browser reloads do not lose the pending operation's database record.
+-- Changes made directly in Zoom are not automatically imported: use GoCoach's Sync
+-- action for its managed meetings. Calendly-managed meetings stay managed in Calendly.
+-- Attendance, cloud recordings, transcripts, and a website-embedded meeting SDK are
+-- outlined in Settings as future features; no data from those features is requested.
+-- Live Zoom configuration is blocked in public demo workspaces and deploy previews.
+--
+-- CUSTOM DOMAINS AND PREVIEWS
+-- Netlify's URL is used as the callback origin by default. For a custom domain, set
+-- PUBLIC_ORIGIN=https://<canonical-host> before enabling booking sync. Disconnect
+-- before changing domains, then redeploy and enable sync for the new origin.
+-- Netlify deploy previews use their own database branch. Do not copy the production
+-- DATABASE_URL into previews. Registration/disconnection of live Calendly webhooks
+-- is blocked outside the production deploy context. Protect previews that contain
+-- a production data snapshot; do not enable public demo login against real data.
+--
+-- OPTIONAL PUBLIC PROTOTYPE
+-- For fictional data and the Public/Coach/Buyer/Participant top-menu switcher, deploy
+-- a SEPARATE Netlify project with GOCOACH_DEMO=true. No bootstrap values are needed.
+-- Anyone with that demo URL can use its coach view and edit its sample data.
+-- Do not add real participant information. Live Calendly credentials are disabled.
+-- Changing demo mode on an existing workspace is refused. Use a separate project
+-- or a new GOCOACH_WORKSPACE_ID UUID rather than converting an existing workspace.
+--
+-- LOCAL DEVELOPMENT
+-- Quick offline demo (no external providers or PostgreSQL required):
+--   npm ci
+--   npm run dev
+-- Open http://localhost:4173 and /portal.html. PORT/HOST/PUBLIC_ORIGIN configure
+-- a different port or an explicit LAN/public origin. Bind HOST=0.0.0.0 only when
+-- access from another device is intended. Local JSON data stays under data/.
+--   npm run build
+--   npm start
+-- Production local JSON mode requires npm run create-coach -- email "Coach Name".
+--
+-- Netlify's local function/database environment:
+--   npm run netlify:dev
+-- Netlify CLI can require project linking/authentication for its environment.
+-- Use local development coach settings for a local database, never production URLs.
+-- A local HTTP server cannot receive Calendly webhooks from the internet; full sync
+-- is verified on the HTTPS deployment. Event links/credential tests can run locally.
+--
+-- ORDINARY POSTGRESQL / OTHER HOSTING ENVIRONMENTS
+-- 1. Provision an EMPTY PostgreSQL 15+ database. No extensions or cloud-specific
+--    auth/storage schemas are required. The migration user needs database CREATE
+--    and ownership of GoCoach objects, but no superuser or CREATE ROLE privileges.
+-- 2. Supply DATABASE_URL or PGHOST/PGPORT/PGDATABASE/PGUSER and private credentials.
+--    Use verified TLS for managed servers. config/database.env.example lists options.
+--    These examples are not automatically loaded. You can use an ignored .env.local:
+--      node --env-file=.env.local scripts/database.mjs
+--    Or, with variables already exported: npm run db:migrate
+--    The runner requires psql 15+. PG_BIN or PSQL_BIN can locate it.
+-- 3. Configure the same bootstrap and encryption variables as above. Start with:
+--      node --env-file=.env.local scripts/server.mjs
+--    DATABASE_URL/PGDATABASE switches this Node server to the real SQL adapter.
+--    Use --production after npm run build to serve dist/. The HTTP API is the same
+--    as the Netlify function. No framework rewrite or different schema is required.
+--    An additional coach can be created with create-coach using the same database.
+-- 4. Optional local Docker: export GOCOACH_POSTGRES_PASSWORD, then run
+--      docker compose -f config/compose.postgres.yml up -d --wait
+--    Database: gocoach; owner: gocoach_owner; local port: 5432. The named volume
+--    persists when the service stops. This Compose file is for local development.
+--
+-- MIGRATION OWNERSHIP
+-- Netlify applies the files itself. NEVER run npm run db:migrate against a database
+-- already managed by Netlify migrations. Conversely, don't import a manually
+-- initialized DB and ask Netlify to replay the same migrations without baselining.
+-- Use one migration authority per database. Existing SQL files are immutable after
+-- deployment; add 013_*.sql and later files for future changes.
+-- The local runner uses a transaction, advisory lock, and SHA-256 checksums; repeat
+-- runs are no-ops, and changed or missing applied migrations are rejected.
+-- See https://docs.netlify.com/build/data-and-storage/netlify-database/migrations/
+--
+-- SECURITY AND DATABASE BOUNDARIES
+-- The server enforces coach/buyer/participant authorization and document visibility.
+-- Database RLS and composite keys enforce workspace isolation. Every transaction
+-- sets gocoach.workspace_id from server configuration; the browser cannot choose it.
+-- Actor-scoped SQL views additionally require gocoach.user_id in a transaction.
+-- Never expose the database tables as a generic browser REST API or ship credentials.
+-- RLS is forced on all tables, including for ordinary owners. PostgreSQL superusers
+-- and BYPASSRLS roles still bypass it. Netlify manages its connection role; queries
+-- also explicitly constrain the workspace. For other providers, use a distinct
+-- NOSUPERUSER/NOBYPASSRLS runtime account and grant as the migration owner:
+--   GRANT USAGE ON SCHEMA gocoach TO gocoach_runtime;
+--   GRANT SELECT,INSERT,UPDATE,DELETE ON ALL TABLES IN SCHEMA gocoach TO gocoach_runtime;
+--   GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA gocoach TO gocoach_runtime;
+--   ALTER DEFAULT PRIVILEGES IN SCHEMA gocoach
+--     GRANT SELECT,INSERT,UPDATE,DELETE ON TABLES TO gocoach_runtime;
+--   ALTER DEFAULT PRIVILEGES IN SCHEMA gocoach
+--     GRANT EXECUTE ON FUNCTIONS TO gocoach_runtime;
+-- The runtime login must not be able to SET ROLE to an administrative account.
+--
+-- The SQL adapter uses normalized records, not a single JSON state blob. It currently
+-- loads one workspace per operation and serializes workspace mutations to preserve
+-- the existing workflow guarantees across function instances. Optimize with focused,
+-- paginated repositories before expanding to large datasets or many simultaneous
+-- coaches. The current frontend supports one lead coach and simple USD invoices.
+-- Money uses integer minor units; API conversions reject unsafe numeric ranges.
+-- Core schema includes extension tables for external auth, richer invoices, e-signing,
+-- storage providers, and delivery jobs; they do not imply those providers are live.
+--
+-- PRIVATE FILES, REMINDERS, AND OTHER INTEGRATIONS
+-- Uploads are limited to 3 MiB and stored in PostgreSQL bytea, keeping private files
+-- durable and transactional with metadata. All downloads pass role/scope checks.
+-- Type/size/signature validation is implemented; a third-party malware scanner is
+-- not installed. file_objects supports a future object-storage implementation.
+-- Netlify invokes reminders every five minutes; notices are in-app and email drafts
+-- remain UNSENT. Messages remain inside the workspace. Payments are manual records,
+-- and agreement acknowledgement is not DocuSign signing. No live email, card processor,
+-- or DocuSign credentials are configured. Calendly owns its own confirmation emails.
+-- Database tables for those integrations are present for later provider adapters.
+--
+-- DATA CUTOVER AND RECOVERY
+-- Existing local accounts, JSON, inquiries, uploads, PDFs, archives, and credentials
+-- are not committed or automatically imported. A production deploy starts empty.
+-- A future explicit import must map legacy IDs to UUIDs, resolve missing authors,
+-- and verify record counts, balances, file scopes and ownership before cutover.
+-- Keep backups of the database AND GOCOACH_SECRET_KEY in separate secure locations.
+-- Use Netlify backup/recovery tools or pg_dump/pg_restore for other providers. Test
+-- restoration; a code rollback does not undo applied migrations or remove data.
+--
+-- VERIFICATION
+--   npm test                 # application, HTTP, authorization and crypto tests
+--   npm run db:test          # schema + PostgreSQL API + mocked Calendly / Zoom integrations
+--   npm run netlify:build    # offline production build and function bundling
+--   npm audit                # dependencies, including the pinned development CLI
+-- db:test requires local initdb/pg_ctl/psql binaries and a non-root OS user.
+-- It creates a disposable cluster with a private Unix socket, no TCP listener,
+-- ignores live DATABASE_URL/PG* connection settings, and removes the test database.
+-- Example on macOS: PG_BIN=/opt/homebrew/opt/postgresql@15/bin npm run db:test
+-- GitHub Actions runs these checks on Linux with PostgreSQL 16.
+-- Calendly and Zoom tests use synthetic credentials and mock providers: no live changes.
+-- A real token, deployed callback, and live test booking are still required after
+-- deployment to confirm the specific Calendly account's plan and permissions.

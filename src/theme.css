@@ -1,0 +1,33 @@
+/* Shared GoCoach identity, matched to the supplied Program Brief. */
+:root {
+  --navy: #1f3a5f;
+  --navy-deep: #162b49;
+  --navy-hover: #2d4f7b;
+  --brand-gold: #d69342;
+  --brand-champagne: #e9d9b8;
+  --brand-ivory: #fbf8f2;
+  --brand-rust: #b0432d;
+  --font-display: "Liberation Serif", Georgia, serif;
+  --font-sans: "DejaVu Sans", system-ui, sans-serif;
+  --gold-text: #806017;
+  --canvas: #f2f5f9;
+  --surface: #ffffff;
+  --surface-soft: #e9eef5;
+  --text: #2a302c;
+  --text-secondary: #526176;
+  --border: #dce3ec;
+  --border-strong: #a6b4c7;
+  --focus: #3264a3;
+  --success: #216449;
+  --danger: #aa3529;
+  --radius: 10px;
+  --shadow: 0 2px 4px #162b4904, 0 10px 28px #162b4905;
+}
+
+/* Logos contain the original PDF vector artwork. */
+a.brand,.wordmark{width:200px;flex-shrink:0;max-width:100%}
+.brand-picture,.brand-picture img,.brand-logo{display:block;width:100%;height:auto;max-width:100%}
+a.brand.brand-wide{width:390px}
+.sidebar>a.brand{width:calc(100% - 28px)}
+@media(min-width:1201px){.wordmark{width:360px}}
+@media(max-width:480px){a.brand,.wordmark{width:178px}.public-header a.brand{width:150px}}

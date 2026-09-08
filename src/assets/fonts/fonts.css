@@ -1,0 +1,29 @@
+/* Exact families and versions embedded in the supplied Program Brief. */
+@font-face {
+  font-family: 'Liberation Serif';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/assets/fonts/LiberationSerif-Regular.woff') format('woff');
+}
+@font-face {
+  font-family: 'Liberation Serif';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/assets/fonts/LiberationSerif-Italic.woff') format('woff');
+}
+@font-face {
+  font-family: 'DejaVu Sans';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/assets/fonts/DejaVuSans.woff') format('woff');
+}
+@font-face {
+  font-family: 'DejaVu Sans';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/assets/fonts/DejaVuSans-Bold.woff') format('woff');
+}
