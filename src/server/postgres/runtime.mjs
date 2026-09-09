@@ -4,7 +4,13 @@ export const DEFAULT_WORKSPACE='c63f1ea0-e2a4-4e03-a964-d2bedbce3b11';
 export async function createDatabaseStore(env=process.env) {
   let pool;
   if(env.DATABASE_URL && !env.NETLIFY){const {default:pg}=await import('pg');pool=new pg.Pool({connectionString:env.DATABASE_URL,max:3,connectionTimeoutMillis:10000,idleTimeoutMillis:10000,allowExitOnIdle:true});}
-  else if(env.NETLIFY || env.NETLIFY_DEV || env.NETLIFY_DATABASE_URL){const {getDatabase}=await import('@netlify/database');pool=getDatabase().pool;}
+  else if(env.NETLIFY || env.NETLIFY_DEV || env.NETLIFY_DB_URL || env.NETLIFY_DATABASE_URL){
+    // The SDK reads NETLIFY_DB_URL; Netlify has also provisioned the connection as
+    // NETLIFY_DATABASE_URL. Pass whichever exists so either name works.
+    const {getDatabase}=await import('@netlify/database');
+    const connectionString=env.NETLIFY_DB_URL||env.NETLIFY_DATABASE_URL;
+    pool=getDatabase(connectionString?{connectionString}:{}).pool;
+  }
   else if(env.PGDATABASE){const {default:pg}=await import('pg');pool=new pg.Pool({max:3,allowExitOnIdle:true});}
   else throw new Error('PostgreSQL is not configured');
   const demo=env.GOCOACH_DEMO==='true';

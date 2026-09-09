@@ -52,10 +52,40 @@ SELECT version,applied_at FROM gocoach_meta.schema_migrations ORDER BY version;
 `;
 }
 
+// libpq connection parameters that have an environment variable equivalent.
+const connectionParameters = {
+  sslmode: 'PGSSLMODE', sslrootcert: 'PGSSLROOTCERT', sslcert: 'PGSSLCERT', sslkey: 'PGSSLKEY',
+  channel_binding: 'PGCHANNELBINDING', application_name: 'PGAPPNAME', options: 'PGOPTIONS',
+  connect_timeout: 'PGCONNECT_TIMEOUT', target_session_attrs: 'PGTARGETSESSIONATTRS',
+};
+
+/** Translate DATABASE_URL into the PG* variables libpq reads.
+ * libpq only expands a connection URI supplied as the dbname argument, not one
+ * inherited from PGDATABASE, so a URI left in PGDATABASE is taken literally as a
+ * database name. Passing it in argv would expand it but would also expose the
+ * password in `ps` output, so it is translated here and every secret stays in
+ * the environment. Values in the URI win over matching PG* variables already set.
+ * @param {NodeJS.ProcessEnv} env @returns {NodeJS.ProcessEnv} */
+export function connectionEnvironment(env) {
+  const result = { ...env };
+  if (!env.DATABASE_URL) return result;
+  let url;
+  try { url = new URL(env.DATABASE_URL); }
+  catch { throw new Error('DATABASE_URL is not a valid connection URI. No database was changed.'); }
+  if (!['postgres:', 'postgresql:'].includes(url.protocol)) throw new Error('DATABASE_URL must use the postgresql:// scheme. No database was changed.');
+  const set = (variable, value) => { if (value) result[variable] = value; };
+  // A ?host= parameter carries a Unix socket directory and outranks the authority.
+  set('PGHOST', url.searchParams.get('host') || decodeURIComponent(url.hostname).replace(/^\[|\]$/g, ''));
+  set('PGPORT', url.port);
+  set('PGUSER', url.username && decodeURIComponent(url.username));
+  set('PGPASSWORD', url.password && decodeURIComponent(url.password));
+  set('PGDATABASE', decodeURIComponent(url.pathname.replace(/^\//, '')));
+  for (const [parameter, variable] of Object.entries(connectionParameters)) set(variable, url.searchParams.get(parameter));
+  return result;
+}
+
 export function psql(sql, { env = process.env, args = [], onOutput } = {}) {
-  const connectionEnv = { ...env };
-  // libpq accepts a connection URI in PGDATABASE. Keep it out of argv and logs.
-  if (env.DATABASE_URL) connectionEnv.PGDATABASE = env.DATABASE_URL;
+  const connectionEnv = connectionEnvironment(env);
   if (!connectionEnv.PGDATABASE) throw new Error('Set DATABASE_URL or PGDATABASE explicitly. No database was changed.');
   const executable = env.PSQL_BIN || (env.PG_BIN ? resolve(env.PG_BIN, 'psql') : 'psql');
   return new Promise((resolveResult, reject) => {

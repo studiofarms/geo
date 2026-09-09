@@ -34,11 +34,18 @@
 --    The UI can deploy before these are set, but account/data endpoints fail closed
 --    until the initial account is configured. Redeploy after changing variables.
 --    These are server values, never browser variables, VITE_* values, or source code.
--- 5. Deploy. The installed @netlify/database SDK and SQL migration directory tell
---    Netlify to provision PostgreSQL and apply the migrations before publishing.
---    Check Data & Storage > Database and the deploy migration logs. There is no
---    need to create Neon/Supabase separately or paste a DATABASE_URL into the UI.
+-- 5. Deploy. Netlify provisions PostgreSQL during the build, provided the Neon
+--    extension is installed for the team/site and @netlify/database stays in
+--    dependencies. Netlify supplies the connection string as NETLIFY_DB_URL (it is
+--    also published as NETLIFY_DATABASE_URL); the app accepts either name. Check
+--    Data & Storage > Database. There is no need to create Neon/Supabase separately
+--    or paste a DATABASE_URL into the UI.
 --    Official setup: https://docs.netlify.com/build/data-and-storage/netlify-database/getting-started/
+--    Provisioning does NOT apply this repository's SQL migrations. Apply them once
+--    against the provisioned database from a machine with psql 15+:
+--      DATABASE_URL='<connection string from Netlify>' npm run db:migrate
+--    Until that has run the gocoach schema does not exist and the API answers 503
+--    with "Complete the database and workspace setup to enable this service."
 --    If account provisioning needs attention, resolve the Netlify dashboard error;
 --    account billing/quotas remain controlled by Netlify. No cloud DB was provisioned
 --    by the local build/test commands used to prepare this repository.
@@ -210,13 +217,14 @@
 --    persists when the service stops. This Compose file is for local development.
 --
 -- MIGRATION OWNERSHIP
--- Netlify applies the files itself. NEVER run npm run db:migrate against a database
--- already managed by Netlify migrations. Conversely, don't import a manually
--- initialized DB and ask Netlify to replay the same migrations without baselining.
+-- npm run db:migrate is the single migration authority for every environment,
+-- including Netlify: the @netlify/database SDK provisions and connects, but it does
+-- not apply SQL, so nothing replays these files on deploy. Should a future Netlify
+-- feature apply them for you, baseline first rather than letting both run.
 -- Use one migration authority per database. Existing SQL files are immutable after
 -- deployment; add 013_*.sql and later files for future changes.
--- The local runner uses a transaction, advisory lock, and SHA-256 checksums; repeat
--- runs are no-ops, and changed or missing applied migrations are rejected.
+-- The runner uses a transaction, advisory lock, and SHA-256 checksums; repeat runs
+-- are no-ops, and changed or missing applied migrations are rejected.
 -- See https://docs.netlify.com/build/data-and-storage/netlify-database/migrations/
 --
 -- SECURITY AND DATABASE BOUNDARIES
