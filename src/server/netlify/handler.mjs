@@ -56,7 +56,7 @@ export function createNetlifyHandler({store,demo,origins,calendly,zoom}){
       return new Response(body,{status,headers:responseHeaders});
     }catch(error){
       const status=error instanceof RequestError?error.status:503;
-      if(status===503)console.error('GoCoach API unavailable:',error.code||error.name);
+      if(status===503)console.error('GoCoach API unavailable:',error.code||error.name,'-',error.message);
       return Response.json({error:status===503?'The service is temporarily unavailable. Please try again shortly.':error.message,fields:error.fields||{}},{status,headers:{...headers,...(status===429?{'Retry-After':'60'}:{})}});
     }
   };

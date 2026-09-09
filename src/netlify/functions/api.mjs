@@ -17,6 +17,6 @@ export default async function handler(request,context){
       return createNetlifyHandler({store,demo:store.demo,origins:[...new Set(origins)],calendly,zoom});
     })();
     return await(await application)(request,context);
-  }catch(error){application=null;console.error('GoCoach initialization failed:',error.code||error.name);return Response.json({error:'Complete the database and workspace setup to enable this service.'},{status:503,headers:{'Cache-Control':'no-store'}});}
+  }catch(error){application=null;console.error('GoCoach initialization failed:',error.code||error.name,'-',error.message);return Response.json({error:'Complete the database and workspace setup to enable this service.'},{status:503,headers:{'Cache-Control':'no-store'}});}
 }
 export const config={path:'/api/*'};

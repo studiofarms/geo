@@ -7,6 +7,7 @@ export class RequestError extends Error {
   /** @param {number} status @param {string} message @param {Record<string, string>} fields */
   constructor(status, message, fields = {}) {
     super(message);
+    this.name = 'RequestError';
     this.status = status;
     this.fields = fields;
   }
