@@ -6,9 +6,9 @@
 --
 -- DEPLOY FROM THE PRIVATE GITHUB REPOSITORY
 -- 1. The repository owner must grant the associate GitHub access to
---    tanthonybosci/gocoach. Clone using a GitHub-authenticated account:
---      gh repo clone tanthonybosci/gocoach
---      cd gocoach
+--    studiofarms/geo. Clone using a GitHub-authenticated account:
+--      gh repo clone studiofarms/geo
+--      cd geo
 --      npm ci
 --    Requires Node.js 22+ and npm. No database password belongs in this repository.
 -- 2. Generate an initial coach password hash (password input is hidden):
