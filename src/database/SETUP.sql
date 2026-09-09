@@ -50,6 +50,16 @@
 -- 6. Open /api/health: expect status=ok, mode=production, storage=postgres.
 --    Sign in at /portal.html with the coach email and the original password.
 --    First use creates the account once. No demo accounts are created in this mode.
+--    "Once" is literal: the workspace row and this account are created together by
+--    the first request that succeeds, and the GOCOACH_BOOTSTRAP_* values are then
+--    ignored for the life of that workspace. Editing them afterwards changes
+--    nothing, so confirm the address before the first successful request. To start
+--    over with a different initial coach, point GOCOACH_WORKSPACE_ID at a new UUID
+--    and redeploy; the previous workspace and its data remain in the database and
+--    are reachable again by restoring its id.
+--    The workspace UI invites buyers and participants only. An ADDITIONAL coach
+--    cannot be created from it, and needs npm run create-coach run against the
+--    database with DATABASE_URL set.
 --    After successful sign-in, remove the three GOCOACH_BOOTSTRAP_* variables and
 --    redeploy. Existing accounts persist; bootstrap values do not reset passwords.
 -- 7. Configure Calendly from Settings in the coach workspace, as described below.
