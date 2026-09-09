@@ -41,11 +41,9 @@
 --    Data & Storage > Database. There is no need to create Neon/Supabase separately
 --    or paste a DATABASE_URL into the UI.
 --    Official setup: https://docs.netlify.com/build/data-and-storage/netlify-database/getting-started/
---    Provisioning does NOT apply this repository's SQL migrations. Apply them once
---    against the provisioned database from a machine with psql 15+:
---      DATABASE_URL='<connection string from Netlify>' npm run db:migrate
---    Until that has run the gocoach schema does not exist and the API answers 503
---    with "Complete the database and workspace setup to enable this service."
+--    Netlify also applies the files in netlify/database/migrations/ to the database
+--    branch during the deploy; the deploy summary lists each one. Do not run
+--    npm run db:migrate against a Netlify-managed database (see MIGRATION OWNERSHIP).
 --    If account provisioning needs attention, resolve the Netlify dashboard error;
 --    account billing/quotas remain controlled by Netlify. No cloud DB was provisioned
 --    by the local build/test commands used to prepare this repository.
@@ -217,10 +215,11 @@
 --    persists when the service stops. This Compose file is for local development.
 --
 -- MIGRATION OWNERSHIP
--- npm run db:migrate is the single migration authority for every environment,
--- including Netlify: the @netlify/database SDK provisions and connects, but it does
--- not apply SQL, so nothing replays these files on deploy. Should a future Netlify
--- feature apply them for you, baseline first rather than letting both run.
+-- Netlify applies the files itself during the deploy. NEVER run npm run db:migrate
+-- against a database already managed by Netlify migrations. Conversely, don't import
+-- a manually initialized DB and ask Netlify to replay the same migrations without
+-- baselining. npm run db:migrate is the authority only for the ordinary PostgreSQL
+-- path above, where nothing else applies them.
 -- Use one migration authority per database. Existing SQL files are immutable after
 -- deployment; add 013_*.sql and later files for future changes.
 -- The runner uses a transaction, advisory lock, and SHA-256 checksums; repeat runs
