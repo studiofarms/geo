@@ -13,7 +13,12 @@ export async function createDatabaseStore(env=process.env) {
   }
   else if(env.PGDATABASE){const {default:pg}=await import('pg');pool=new pg.Pool({max:3,allowExitOnIdle:true});}
   else throw new Error('PostgreSQL is not configured');
-  const demo=env.GOCOACH_DEMO==='true';
-  const bootstrap=env.GOCOACH_BOOTSTRAP_EMAIL&&env.GOCOACH_BOOTSTRAP_PASSWORD_HASH?{email:env.GOCOACH_BOOTSTRAP_EMAIL,name:env.GOCOACH_BOOTSTRAP_NAME||'Coach',passwordHash:env.GOCOACH_BOOTSTRAP_PASSWORD_HASH}:undefined;
-  return new PostgresStore({pool,workspaceId:env.GOCOACH_WORKSPACE_ID||DEFAULT_WORKSPACE,demo,bootstrap});
+  // Deployment UIs and copy/paste readily leave surrounding whitespace on a value.
+  // The password hash, workspace id and demo flag are all matched exactly, so an
+  // untrimmed value fails validation for a reason no operator can see.
+  const setting=key=>typeof env[key]==='string'?env[key].trim():'';
+  const demo=setting('GOCOACH_DEMO')==='true';
+  const email=setting('GOCOACH_BOOTSTRAP_EMAIL'),passwordHash=setting('GOCOACH_BOOTSTRAP_PASSWORD_HASH');
+  const bootstrap=email&&passwordHash?{email,name:setting('GOCOACH_BOOTSTRAP_NAME')||'Coach',passwordHash}:undefined;
+  return new PostgresStore({pool,workspaceId:setting('GOCOACH_WORKSPACE_ID')||DEFAULT_WORKSPACE,demo,bootstrap});
 }

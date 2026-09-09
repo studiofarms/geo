@@ -53,3 +53,30 @@ test('a malformed or non-PostgreSQL URI is refused before anything connects', ()
   assert.throws(() => connectionEnvironment({ DATABASE_URL: 'not a url' }), /valid connection URI/);
   assert.throws(() => connectionEnvironment({ DATABASE_URL: 'mysql://user@host/db' }), /postgresql:\/\/ scheme/);
 });
+
+// createDatabaseStore builds its configuration from environment variables that a
+// deployment UI may hand back with surrounding whitespace.
+import { createDatabaseStore, DEFAULT_WORKSPACE } from '../src/server/postgres/runtime.mjs';
+
+const HASH = 'a'.repeat(32) + ':' + 'b'.repeat(128);
+
+test('padded bootstrap and workspace values are accepted rather than failing validation', async () => {
+  const store = await createDatabaseStore({
+    PGDATABASE: 'gocoach',
+    GOCOACH_DEMO: ' false ',
+    GOCOACH_BOOTSTRAP_EMAIL: '  coach@example.com\n',
+    GOCOACH_BOOTSTRAP_NAME: ' Carol Anthony ',
+    GOCOACH_BOOTSTRAP_PASSWORD_HASH: `\n${HASH}  `,
+    GOCOACH_WORKSPACE_ID: `  ${DEFAULT_WORKSPACE}\n`,
+  });
+  assert.equal(store.demo, false);
+  assert.equal(store.workspaceId, DEFAULT_WORKSPACE);
+  assert.deepEqual(store.bootstrap, { email: 'coach@example.com', name: 'Carol Anthony', passwordHash: HASH });
+  await store.pool.end();
+});
+
+test('a bootstrap account is only configured when both halves are present', async () => {
+  const store = await createDatabaseStore({ PGDATABASE: 'gocoach', GOCOACH_BOOTSTRAP_EMAIL: 'coach@example.com' });
+  assert.equal(store.bootstrap, undefined);
+  await store.pool.end();
+});
