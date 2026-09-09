@@ -35,12 +35,12 @@ export class PostgresStore {
   async initialize(client){
     await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',[`gocoach:${this.workspaceId}`]);
     const {rows}=await client.query('SELECT demo FROM gocoach.workspaces WHERE id=$1 FOR UPDATE',[this.workspaceId]);
-    if(rows.length){if(rows[0].demo!==this.demo)fail(503,'Workspace mode differs from deployment settings. Use a separate workspace for demo data.');return;}
-    if(!this.demo&&!this.bootstrap&&!this.allowEmpty)fail(503,'Configure the initial coach account before opening the production workspace.');
+    if(rows.length){if(rows[0].demo!==this.demo)fail(503,'Workspace mode differs from deployment settings. Use a separate workspace for demo data.','workspace-mode-mismatch');return;}
+    if(!this.demo&&!this.bootstrap&&!this.allowEmpty)fail(503,'Configure the initial coach account before opening the production workspace.','coach-account-missing');
     await client.query('INSERT INTO gocoach.workspaces(id,slug,name,demo) VALUES($1,$2,$3,$4)',[this.workspaceId,`gocoach-${this.workspaceId}`,'GoCoach',this.demo]);
     const {db,mapping}=this.demo?demoSeed(seed(true),this.workspaceId):{db:seed(false),mapping:new Map()};
     if(!this.demo&&this.bootstrap){const {email,name,passwordHash}=this.bootstrap;
-      if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||!name||!/^([a-f\d]{32}):([a-f\d]{128})$/.test(passwordHash))throw new Error('Invalid bootstrap account configuration');
+      if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||!name||!/^([a-f\d]{32}):([a-f\d]{128})$/.test(passwordHash))fail(503,'Invalid bootstrap account configuration','bootstrap-account-invalid');
       db.users.push({id:randomUUID(),name,email:email.toLowerCase(),role:'coach',passwordHash});}
     await writeState(client,this.workspaceId,seed(false),db);
     await client.query('INSERT INTO gocoach.workspace_settings(workspace_id,settings) VALUES($1,$2) ON CONFLICT DO NOTHING',[this.workspaceId,db.settings]);

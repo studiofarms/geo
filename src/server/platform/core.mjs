@@ -3,8 +3,13 @@ import { RequestError } from '../inquiries.mjs';
 export { RequestError };
 /** @returns {string} */
 export const id = () => randomUUID();
-/** @param {number} status @param {string} message */
-export const fail = (status, message) => { throw new RequestError(status, message); };
+/** @param {number} status @param {string} message @param {string} [setup] a stable
+ * code naming a deployment-configuration state, safe to report to an operator. */
+export const fail = (status, message, setup) => {
+  const error = new RequestError(status, message);
+  if (setup) error.setup = setup;
+  throw error;
+};
 /** @param {unknown} value @param {number} max @param {boolean} required @returns {string} */
 export function text(value, max = 200, required = true) {
   if (typeof value !== 'string' || (required && !value.trim()) || value.length > max || /[\x00-\x08\x0b\x0c\x0e-\x1f]/.test(value)) {

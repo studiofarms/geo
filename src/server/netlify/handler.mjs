@@ -32,7 +32,14 @@ export function createNetlifyHandler({store,demo,origins,calendly,zoom}){
       if(request.method==='POST'&&((request.headers.has('origin')&&!origins.includes(request.headers.get('origin')))||request.headers.get('sec-fetch-site')==='cross-site'))throw new RequestError(403,'Submit from the GoCoach website.');
       if(url.pathname==='/api/health'){
         if(!['GET','HEAD'].includes(request.method))return new Response(null,{status:405,headers:{...headers,Allow:'GET, HEAD'}});
-        await store.run(()=>null);
+        // Report an unhealthy deployment as one of a fixed set of codes. Only these
+        // known configuration states are named; no error text is ever echoed back.
+        try{await store.run(()=>null);}
+        catch(error){
+          const setup=typeof error?.setup==='string'?error.setup:'unavailable';
+          console.error('GoCoach health check failed:',setup,'-',error.message);
+          return request.method==='HEAD'?new Response(null,{status:503,headers}):Response.json({status:'error',setup},{status:503,headers});
+        }
         return request.method==='HEAD'?new Response(null,{headers}):Response.json({status:'ok',mode:demo?'demo':'production',storage:'postgres',inquiryDelivery:'database'},{headers});
       }
       if(url.pathname==='/api/inquiries'){
