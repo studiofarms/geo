@@ -420,7 +420,7 @@
         <form id="inquiry-form" action="/api/inquiries" method="post" aria-labelledby="form-title">
           <h3 id="form-title">Tell us where you’d like to go.</h3>
           <p class="form-intro">Not ready for a call? Send a little context. Required fields are marked *.</p>
-          <p class="prototype-note"><span class="dot" aria-hidden="true"></span>Local prototype · inquiries are saved on this development server. Email delivery is not connected.</p>
+          <p class="prototype-note"><span class="dot" aria-hidden="true"></span>Inquiries are saved to the GoCoach workspace. Email delivery is not connected.</p>
           <div class="form-grid">
             <div class="field"><label for="name">Your name *</label><input id="name" name="name" autocomplete="name" required maxlength="100" placeholder="Full name" aria-describedby="name-error" /><span id="name-error" class="field-error"></span></div>
             <div class="field"><label for="email">Email address *</label><input id="email" name="email" type="email" autocomplete="email" required maxlength="254" placeholder="you@organization.com" aria-describedby="email-error" /><span id="email-error" class="field-error"></span></div>
@@ -438,7 +438,7 @@
         <div class="form-success" id="form-success" tabindex="-1" hidden>
           <span class="success-mark" aria-hidden="true">✓</span><span class="eyebrow">A first step, taken.</span>
           <h3>Your inquiry is saved.</h3>
-          <p>Thank you, <span id="receipt-name"></span>. Your inquiry has been saved on this development server. No email has been sent and no appointment has been booked.</p>
+          <p>Thank you, <span id="receipt-name"></span>. Your inquiry has been saved. No email has been sent and no appointment has been booked.</p>
           <p class="receipt">Reference <strong id="receipt-reference"></strong></p>
           <a class="cta-link" href="/syllabus.html">Explore the syllabus <span aria-hidden="true">↗</span></a>
           <button class="text-link" type="button" id="new-inquiry">Start another inquiry</button>
@@ -449,7 +449,7 @@
 </section>
 <section class="newsletter frame" aria-labelledby="newsletter-title">
   <div><span class="eyebrow">Keep the conversation going</span><h2 id="newsletter-title">A note, <em>now and then.</em></h2><p>Reflections on the practice, and news of future cohorts.</p></div>
-  <form id="newsletter-form"><label for="newsletter-email">Your email address</label><div class="newsletter-entry"><input id="newsletter-email" name="email" type="email" autocomplete="email" required maxlength="254" placeholder="you@organization.com"/><button class="button button-primary" type="submit">Join the list ↗</button></div><label class="newsletter-consent"><input name="consent" type="checkbox" required/>I’d like to receive GoCoach updates.</label><p id="newsletter-status" role="status" aria-live="polite">Local prototype: preferences are saved; email delivery is not connected.</p><noscript>Enable JavaScript to join the mailing list.</noscript></form>
+  <form id="newsletter-form"><label for="newsletter-email">Your email address</label><div class="newsletter-entry"><input id="newsletter-email" name="email" type="email" autocomplete="email" required maxlength="254" placeholder="you@organization.com"/><button class="button button-primary" type="submit">Join the list ↗</button></div><label class="newsletter-consent"><input name="consent" type="checkbox" required/>I’d like to receive GoCoach updates.</label><p id="newsletter-status" role="status" aria-live="polite">Preferences are saved to the GoCoach workspace. Email delivery is not connected.</p><noscript>Enable JavaScript to join the mailing list.</noscript></form>
 </section>
 <footer class="foot frame">
   <span>GoCoach · © <span data-year>2026</span></span>

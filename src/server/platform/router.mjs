@@ -106,11 +106,11 @@ export function createPlatform({ directory, inquiryDirectory, development, store
           if (body.consent !== true || body.website) fail(422, 'Please consent to joining the mailing list.');
           const address = email(body.email);
           let subscriber = db.subscribers.find(item => item.email === address);
-          if (subscriber && subscriber.status === 'subscribed') return { message: 'Your mailing-list preference has been saved locally. Email delivery is not connected.' };
+          if (subscriber && subscriber.status === 'subscribed') return { message: 'Your mailing-list preference has been saved. Email delivery is not connected.' };
           const token = randomBytes(32).toString('hex');
           if (!subscriber) { subscriber = { id: id(), email: address }; db.subscribers.push(subscriber); }
           Object.assign(subscriber, { status: 'subscribed', consentAt: new Date().toISOString(), tokenHash: hash(token) });
-          return { message: 'You are on the local mailing list. Email delivery is not connected.', unsubscribeToken: token };
+          return { message: 'You are on the GoCoach mailing list. Email delivery is not connected.', unsubscribeToken: token };
         }, true);
         return json(200, result);
       }
